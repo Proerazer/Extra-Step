@@ -1,8 +1,8 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { loadBans, saveBans } = require('../utils/banManager');
+const config = require('../config.json');
 
 module.exports = {
-    // Define the slash command
     data: new SlashCommandBuilder()
         .setName('unban')
         .setDescription('Remove a user from the permanent ban list and unban them from the server.')
@@ -11,37 +11,42 @@ module.exports = {
                 .setDescription('The user to unban')
                 .setRequired(true)
         )
-        .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers), // Staff-only
+        .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers), // Only users with BanMembers permission can run this
 
     async execute(interaction, client) {
-        const user = interaction.options.getUser('user');
-
-        // Load the ban list
-        const bans = loadBans();
-
-        // Check if the user is in the ban list
-        const index = bans.findIndex(entry => entry.userId === user.id);
-        if (index === -1) {
+        // ✅ Restrict to the support server only
+        if (interaction.guildId !== config.guildId) {
             return interaction.reply({
-                content: `❌ <@${user.id}> is not in the ban database.`,
+                content: '❌ This command can only be used in the support server.',
                 ephemeral: true
             });
         }
 
-        // Remove the user from the list and save
+        const user = interaction.options.getUser('user');
+        const bans = loadBans();
+        const index = bans.findIndex(entry => entry.userId === user.id);
+
+        // ❌ Not banned
+        if (index === -1) {
+            return interaction.reply({
+                content: `❌ <@${user.id}> is not in the global ban list.`,
+                ephemeral: true
+            });
+        }
+
+        // ✅ Remove from list
         bans.splice(index, 1);
         saveBans(bans);
 
-        // Attempt to unban from the current server
-        const guild = client.guilds.cache.get(interaction.guildId);
+        // 🔄 Attempt to unban from this server
         try {
-            await guild.members.unban(user.id);
+            await interaction.guild.members.unban(user.id);
         } catch {
-            // Ignore if user wasn't banned in the server
+            // Ignore if not banned here
         }
 
         return interaction.reply({
-            content: `✅ <@${user.id}> has been removed from the permanent ban list.`,
+            content: `✅ <@${user.id}> has been removed from the global ban list.`,
             ephemeral: true
         });
     }
