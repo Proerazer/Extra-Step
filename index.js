@@ -208,12 +208,28 @@ client.on('messageCreate', async message => {
 
 // ✅ Ban appeal invite if banned user rejoins
 client.on('guildMemberAdd', async member => {
-  if (isBanned(member.id)) {
-    try {
-      await member.send(`🚫 You are currently banned from these communities.\nAppeal here: ${SUPPORT_SERVER_INVITE}`);
-    } catch {
-      console.warn(`❗ Could not DM banned user (${member.id})`);
-    }
+  // ✅ Only act if the user is globally banned
+  if (!isBanned(member.id)) return;
+
+  // ✅ Allow them to join the support/appeal server
+  if (member.guild.id === config.guildId) {
+    console.log(`👋 Banned user ${member.user.tag} joined the support server. Ban skipped for appeal access.`);
+    return;
+  }
+
+  // 🔔 DM them before banning (if possible)
+  try {
+    await member.send(`🚫 You were automatically banned from **${member.guild.name}** due to a previous violation.\nIf you believe this was a mistake, you can appeal here:\n${SUPPORT_SERVER_INVITE}`);
+  } catch {
+    console.warn(`❗ Could not DM banned user ${member.user.tag}`);
+  }
+
+  // 🔨 Ban them from the current server
+  try {
+    await member.ban({ reason: 'Auto-ban from persistent global ban list' });
+    console.log(`✅ Auto-banned ${member.user.tag} in ${member.guild.name}`);
+  } catch (err) {
+    console.warn(`⚠️ Failed to auto-ban ${member.user.tag}: ${err.message}`);
   }
 });
 
