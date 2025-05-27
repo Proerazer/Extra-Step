@@ -1,0 +1,6 @@
+{
+    "token": "YOUR BOT TOKEN",
+    "reportCategoryId": "Ticketing Category",
+    "clientId": "Bot Client ID",
+    "guildId": "Server ID for tickets to be created"
+}
